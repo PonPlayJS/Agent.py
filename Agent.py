@@ -18,40 +18,40 @@ def think_and_send(self):
 
             #--------------------------------------- 1. Preprocessing
 
-            # Obtén la posición predicha de la bola
-            slow_ball_pos = w.get_predicted_ball_pos(0.5)  # Predicción cuando la velocidad <= 0.5 m/s
+            # Get the predicted position of the ball
+            slow_ball_pos = w.get_predicted_ball_pos(0.5)  # Prediction when speed <= 0.5 m/s
 
-            # Definir una posición por defecto para jugadores sin información (se usará para evitar errores)
+            # Define a default position for players without information (to avoid errors)
             default_pos = np.array([1000, 1000]) 
             
-            # --- Vectorización para compañeros ---
-            # Extraer posiciones: si state_abs_pos es None, se usa default_pos
+            # --- Vectorization for teammates ---
+            # Extract positions: if state_abs_pos is None, use default_pos
             teammate_positions = np.array([
                 np.array(p.state_abs_pos[:2]) if p.state_abs_pos is not None else default_pos
                 for p in w.teammates
             ])
-            # Extraer otros atributos con comprobación para evitar None
+            # Extract other attributes with a check to avoid None
             teammate_last_updates = np.array([
                 p.state_last_update if p.state_last_update is not None else 0
                 for p in w.teammates
             ])
             teammate_is_self = np.array([p.is_self for p in w.teammates])
             teammate_fallen = np.array([p.state_fallen for p in w.teammates])
-            # Incluimos en la máscara también que la posición sea válida
+            # Also include in the mask that the position is valid
             valid_mask = (
                 (teammate_last_updates != 0) &
                 (((w.time_local_ms - teammate_last_updates) <= 360) | teammate_is_self) &
                 (~teammate_fallen) &
                 (np.array([p.state_abs_pos is not None for p in w.teammates]))
             )
-            # Calcula las diferencias y la norma al cuadrado
+            # Calculate the differences and the squared norm
             diff_teammates = teammate_positions - slow_ball_pos
             sq_distances_teammates = np.sum(diff_teammates**2, axis=1)
-            # Para los jugadores con datos inválidos, asigna un valor grande (1000)
+            # For players with invalid data, assign a large value (1000)
             sq_distances_teammates[~valid_mask] = 1000
             teammates_ball_sq_dist = sq_distances_teammates.tolist()
 
-            # --- Vectorización para oponentes ---
+            # --- Vectorization for opponents ---
             opponent_positions = np.array([
                 np.array(p.state_abs_pos[:2]) if p.state_abs_pos is not None else default_pos
                 for p in w.opponents
@@ -72,7 +72,7 @@ def think_and_send(self):
             sq_distances_opponents[~valid_mask_opponents] = 1000
             opponents_ball_sq_dist = sq_distances_opponents.tolist()
 
-            # Calcular las distancias mínimas
+            # Calculate the minimum distances
             min_teammate_ball_sq_dist = np.min(teammates_ball_sq_dist)
             self.min_teammate_ball_dist = math.sqrt(min_teammate_ball_sq_dist)
             self.min_opponent_ball_dist = math.sqrt(np.min(opponents_ball_sq_dist))
